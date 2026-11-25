@@ -1,0 +1,44 @@
+use std::{fs};
+
+fn main() { 
+
+    let str_path = "src/test.txt";
+
+    let content = read_file(str_path);
+
+    display(&content);
+
+}
+
+fn read_file(path: &str) -> String { // borrowed because it doesnt outlive main and only needs the string for a single operation | transfers ownership back to main because its doing the task for main
+
+
+    let contents = fs::read_to_string(path)
+        .expect("Unable to read file into string");
+
+    let mut final_contents = String::new();
+
+    for (index, line) in contents.lines().enumerate() {
+
+        final_contents.push_str(&format!("{index}  {line}\n")); // borrow operator & because format! returns an owned string push str expects a borrowed string
+
+    }
+
+    return final_contents;
+
+
+}
+
+fn display(content: &str) { // borrowed because it only prints the contents and nothing further
+
+    println!("===============================================================================================");
+
+    for line in content.lines() {
+
+        println!("{line}");
+        
+    }
+
+    println!("===============================================================================================");
+
+}
