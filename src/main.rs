@@ -1,85 +1,88 @@
-use eframe::egui;
+mod file_management;
+use eframe::{egui};
 
-struct Info { // struct containing information
-    name: String,
-    age: i32,
+struct Info {
+    memo_text: String,
 }
 
 struct App {
-    info: Info
+    info: Info,
 }
 
-// runs everytime the gui needs to update
 impl eframe::App for App {
     fn ui(
         &mut self,
         ui: &mut egui::Ui,
         _frame: &mut eframe::Frame,
     ) {
-
         egui::CentralPanel::default().show(ui, |ui| {
-            self.info.ui(ui); // make a central panel that contains the contents described in info
+            self.info.ui(ui);
         });
-
     }
 }
 
-impl Info { // what the gui needs to display
+impl Info {
     fn ui(&mut self, ui: &mut egui::Ui) {
-        // Saves us from writing `&mut self.name` etc
-        let Self { name, age } = self;
+        let Self { memo_text } = self;
 
-    ui.with_layout(egui::Layout::top_down(egui::Align::Center), // center contents inside block
-    |ui| {
+        ui.vertical_centered(|ui| {
 
-        ui.heading("Example"); // heading NOT window title
+            ui.heading("Code Editor")
 
-        ui.add(
-            egui::TextEdit::singleline(name)
-                .hint_text("Name"),
-        );
+        });
 
-        ui.add(
-            egui::DragValue::new(age)
-                .range(0..=120)
-                .suffix(" years"),
-        );
-        if ui.button("Increment").clicked() { // atoms????
-            *age += 1;
-        }
+        egui::ScrollArea::both()
+            .show(ui, |ui| {
+                
+                ui.horizontal_top(|ui| {
 
-        ui.label(format!("{name} is {age}"));
+                    ui.vertical(|ui| {
+                        ui.spacing_mut().item_spacing.y = 0.0;
+                        let line_count = memo_text.lines().count().max(1);
 
-    });
+                        for i in 1..=line_count {
+
+                            ui.label(i.to_string());
+
+                        }
+                    });
+
+                    ui.add(
+                        egui::TextEdit::multiline(memo_text) // use ::show eventually for galley
+                            .font(egui::TextStyle::Monospace)
+                            .desired_width(f32::INFINITY) // set the desired width to undefined (any width is fine)
+                    );
+
+                });
+
+            });
 
     }
 }
 
 fn main() -> eframe::Result {
+    let path = String::from(
+        "C:\\Users\\USER\\Documents\\Zip\\src\\test.txt"
+    );
 
-    // Configure the window.
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([400.0, 300.0]) // window size?
-            .with_title("My First GUI"), // window title
+            .with_inner_size([400.0, 300.0])
+            .with_title("Zip"),
 
         ..Default::default()
     };
 
-    // Launch the application.
     eframe::run_native(
         "My First GUI",
         options,
-
-        // Create an instance of App.
-        Box::new(|cc| { // || shows lambda, cc is configuration options, adding _cc means not using cc inside the || function
-
-            cc.egui_ctx.set_visuals(egui::Visuals::dark()); // set the window to dark mode
+        Box::new(|cc| {
+            cc.egui_ctx.set_visuals(egui::Visuals::dark());
 
             Ok(Box::new(App {
                 info: Info {
-                    name: String::new(),
-                    age: 18,
+                    memo_text: file_management::get_contents(&path)
+                        .expect("Unable to read file"),
                 },
             }))
         }),
