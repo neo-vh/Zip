@@ -1,14 +1,17 @@
 mod file_management;
 use std::{fs, path::PathBuf};
-use eframe::{egui, wgpu::wgc::error};
+use eframe::{egui};
+use egui::FontFamily::Name;
+use tokio::net::windows::named_pipe;
 
 struct Info {
     memo_text: String,
+    heading: Option<String>,
 }
 
 struct App {
     info: Info,
-    currentPath: Option<PathBuf> // store the currently open file (none means no file is currently open)
+    current_path: Option<PathBuf> // store the currently open file (none means no file is currently open)
 }
 
 impl eframe::App for App {
@@ -33,7 +36,8 @@ impl eframe::App for App {
 
                     if ui.button("Close").clicked() { 
                         self.info.memo_text.clear(); // clear memo text
-                        self.currentPath = None;
+                        self.current_path = None;
+                        self.info.heading = None;
                         ui.close(); // close menu button drop down
                     }
 
@@ -46,7 +50,10 @@ impl eframe::App for App {
                                 match std::fs::read_to_string(&path) { // check path (borrowed because ownership should go to currentPath)
                                     Ok(contents) => {
                                         self.info.memo_text = contents; // set the memo contetns to the chosen file
-                                        self.currentPath = Some(path); // store the current path and pass ownership
+                                        self.info.heading = path
+                                            .file_name()
+                                            .map(|name| name.to_string_lossy().into_owned()); // set heading to the currently open filename (gets the filename and converts from an OsStr to a &String to an owned string)
+                                        self.current_path = Some(path); // store the current path and pass ownership
                                     }
 
                                     Err(error) => {
@@ -80,7 +87,7 @@ impl eframe::App for App {
 
 impl App {
     fn save_file(&self) {
-        if let Some(path) = &self.currentPath {
+        if let Some(path) = &self.current_path {
             match fs::write(path, &self.info.memo_text) {
                 Ok(()) => {
                     println!("Saved {:?}", path);
@@ -96,11 +103,20 @@ impl App {
 impl Info {
 
     fn ui(&mut self, ui: &mut egui::Ui) {
-        let Self { memo_text } = self;
+        let Self { memo_text, heading } = self; // gives mutable refrences to memo text and heading
 
         ui.vertical_centered(|ui| {
 
-            ui.heading("Code Editor")
+            match heading {
+
+                Some(name) => {
+                    ui.heading(name.as_str())
+                }
+                None => {
+                    ui.heading("Untitled")
+                }
+
+            }
 
         });
 
@@ -152,10 +168,11 @@ fn main() -> eframe::Result {
 
             Ok(Box::new(App {
                 info: Info {
-                    memo_text: String::new()
+                    memo_text: String::new(),
+                    heading: None
                 },
 
-                currentPath: None
+                current_path: None
             }))
         }),
     )
