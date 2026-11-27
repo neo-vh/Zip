@@ -1,5 +1,6 @@
 mod file_management;
-use eframe::{egui};
+use std::{fs, path::PathBuf};
+use eframe::{egui, wgpu::wgc::error};
 
 struct Info {
     memo_text: String,
@@ -7,21 +8,93 @@ struct Info {
 
 struct App {
     info: Info,
+    currentPath: Option<PathBuf> // store the currently open file (none means no file is currently open)
 }
 
 impl eframe::App for App {
+
     fn ui(
         &mut self,
         ui: &mut egui::Ui,
         _frame: &mut eframe::Frame,
     ) {
+
+        if ui.input_mut(|i| i.consume_key(
+            egui::Modifiers::CTRL,
+            egui::Key::S,
+        )) {
+            self.save_file();
+        }
+
+        egui::Panel::top("menu_bar").show(ui, |ui| { // make the panel containing the menu bar
+            egui::MenuBar::new().ui(ui, |ui| { // make the menubar
+
+                ui.menu_button("File", |ui| { // create main button categories
+
+                    if ui.button("Close").clicked() { 
+                        self.info.memo_text.clear(); // clear memo text
+                        self.currentPath = None;
+                        ui.close(); // close menu button drop down
+                    }
+
+                    if ui.button("Open").clicked() {
+
+                        if let Some(path) = rfd::FileDialog::new()
+                            .add_filter("Text files", &["txt", "rs"]) // change later on
+                            .pick_file() {
+
+                                match std::fs::read_to_string(&path) { // check path (borrowed because ownership should go to currentPath)
+                                    Ok(contents) => {
+                                        self.info.memo_text = contents; // set the memo contetns to the chosen file
+                                        self.currentPath = Some(path); // store the current path and pass ownership
+                                    }
+
+                                    Err(error) => {
+                                        eprintln!("Failed to open file {:?}", error); // couldnt open file
+                                    }
+                                }
+
+                            }
+                        
+                        ui.close();
+
+                    }
+
+                    if ui.button("Save").clicked() {
+
+                        self.save_file();
+                        ui.close();
+
+                    }
+
+                })
+
+            });
+        });
+
         egui::CentralPanel::default().show(ui, |ui| {
             self.info.ui(ui);
         });
     }
 }
 
+impl App {
+    fn save_file(&self) {
+        if let Some(path) = &self.currentPath {
+            match fs::write(path, &self.info.memo_text) {
+                Ok(()) => {
+                    println!("Saved {:?}", path);
+                }
+                Err(error) => {
+                    eprintln!("Failed to save {:?}: {:?}", path, error);
+                }
+            }
+        }
+    }
+}
+
 impl Info {
+
     fn ui(&mut self, ui: &mut egui::Ui) {
         let Self { memo_text } = self;
 
@@ -50,7 +123,8 @@ impl Info {
                     ui.add(
                         egui::TextEdit::multiline(memo_text) // use ::show eventually for galley
                             .font(egui::TextStyle::Monospace)
-                            .desired_width(f32::INFINITY) // set the desired width to undefined (any width is fine)
+                            //.desired_width(f32::INFINITY) // set the desired width to undefined (any width is fine)
+                            .min_size(ui.available_size())
                     );
 
                 });
@@ -61,9 +135,6 @@ impl Info {
 }
 
 fn main() -> eframe::Result {
-    let path = String::from(
-        "C:\\Users\\USER\\Documents\\Zip\\src\\test.txt"
-    );
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -81,9 +152,10 @@ fn main() -> eframe::Result {
 
             Ok(Box::new(App {
                 info: Info {
-                    memo_text: file_management::get_contents(&path)
-                        .expect("Unable to read file"),
+                    memo_text: String::new()
                 },
+
+                currentPath: None
             }))
         }),
     )

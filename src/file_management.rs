@@ -7,3 +7,9 @@ pub fn get_contents(path: &str) -> Result<String, std::io::Error> {
     Ok(contents) // no semicolon or rust molests me
 
 }
+
+pub fn juan() {
+
+    println!("Juan het n klein penis, ek haat hom");
+
+}
